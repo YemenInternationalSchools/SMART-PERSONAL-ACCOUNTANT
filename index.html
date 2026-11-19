@@ -1,0 +1,57 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>المحاسب الشخصي الذكي</title>
+<style>
+:root{--c:#0b5ea8;--t:#14213d}*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,"Segoe UI",Arial,sans-serif;color:var(--t);background:#f4f7fc url(assets/bg.png) center/cover fixed}
+.card{background:#fffd;border-radius:14px;padding:16px;box-shadow:0 2px 10px #0001;margin-bottom:14px}
+#login{max-width:340px;margin:12vh auto}input,select,button{font:inherit;padding:9px;border-radius:8px;border:1px solid #bbc;width:100%;margin:4px 0}
+button{background:var(--c);color:#fff;border:0;cursor:pointer}
+#app{display:none;grid-template-columns:230px 1fr;min-height:100vh}
+aside{background:#fffc;padding:12px}aside .e{display:flex;gap:8px;align-items:center;padding:8px;border-radius:10px;cursor:pointer}aside .e:hover,.e.on{background:#e3eefb}
+aside img{width:38px;height:38px;object-fit:contain;border-radius:8px;background:#fff}
+main{padding:16px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px}
+table{width:100%;border-collapse:collapse}td,th{padding:6px;border-bottom:1px solid #dde;text-align:right}
+.bn{font-size:1.4em;font-weight:700;color:var(--c)}.err{color:#b00020}
+@media(max-width:700px){#app{grid-template-columns:1fr}aside{display:flex;overflow:auto}}
+</style></head><body>
+<div id="login" class="card"><h2>المحاسب الشخصي الذكي</h2><small>SMART PERSONAL ACCOUNTANT</small>
+<input id="em" type="text" placeholder="اسم المستخدم" autocapitalize="none"><input id="pw" type="password" placeholder="كلمة المرور">
+<button onclick="login()">دخول</button><p id="msg" class="err"></p></div>
+<div id="app"><aside id="side"></aside><main>
+<div class="card" style="display:flex;justify-content:space-between;align-items:center"><div><b id="en"></b></div><button style="width:auto" onclick="chpw()">كلمة المرور</button><button style="width:auto" onclick="rep()">طباعة تقرير</button><button style="width:auto" onclick="sb.auth.signOut().then(()=>location.reload())">خروج</button></div>
+<div class="row" id="kpi"></div>
+<div class="card"><h3>الحسابات والبطاقات</h3><div class="row"><input id="an" placeholder="اسم الحساب"><input id="ab" placeholder="البنك (ADIB / Al Baraka / CIB / InstaPay)"><select id="ak"><option value="current">جاري</option><option value="savings">توفير</option><option value="debit">خصم مباشر</option><option value="credit">ائتمانية</option><option value="wallet">محفظة</option><option value="cash">نقدي</option></select><input id="al" placeholder="آخر 4 أرقام" maxlength="4"><input id="ao" type="number" step="0.01" placeholder="رصيد افتتاحي"><button onclick="addAcc()">إضافة</button></div><table id="ta"></table></div>
+<div class="card"><h3>العمليات</h3><div class="row"><select id="xa"></select><select id="xk"><option value="expense">مصروف</option><option value="income">إيراد</option></select><input id="xm" type="number" step="0.01" placeholder="المبلغ"><input id="xd" type="date"><input id="xs" placeholder="الوصف / التاجر"><input id="xf" type="file" accept="image/*,.pdf"><button onclick="addTx()">تسجيل</button></div><table id="tt"></table></div>
+</main></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="configuration.js"></script>
+<script>
+const $=i=>document.getElementById(i),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LOGO={school:'assets/school.jpg',fahm:'assets/fahm.jpg',anisa:'assets/anisa.jpg'};
+let sb,cur,ents=[],accs=[];
+try{sb=supabase.createClient(SPA_CONFIG.SUPABASE_URL,SPA_CONFIG.SUPABASE_ANON_KEY)}catch(e){$('msg').textContent='أنشئ configuration.js أولًا (راجع README)'}
+async function login(){const{error}=await sb.auth.signInWithPassword({email:$('em').value.trim().toLowerCase()+'@spa.local',password:$('pw').value});error?$('msg').textContent='تعذر الدخول: '+error.message:init()}
+async function chpw(){const p=prompt('كلمة المرور الجديدة (8 أحرف على الأقل)');if(!p||p.length<8)return alert('قصيرة');const{error}=await sb.auth.updateUser({password:p});alert(error?error.message:'تم التغيير')}
+async function init(){const{data:{session}}=await sb.auth.getSession();if(!session)return;
+ $('login').style.display='none';$('app').style.display='grid';
+ const r=await sb.from('entities').select('*').order('name_ar');ents=r.data||[];
+ $('side').innerHTML='<h3>المحاسب الذكي</h3>'+ents.map(e=>`<div class="e" id="e_${e.id}" onclick="pick('${e.id}')"><img src="${LOGO[e.slug]||''}" alt="" onerror="this.style.visibility='hidden'"><span>${esc(e.name_ar)}</span></div>`).join('');
+ if(ents[0])pick(ents[0].id)}
+async function pick(id){cur=ents.find(e=>e.id==id);document.querySelectorAll('.e').forEach(x=>x.classList.remove('on'));$('e_'+id).classList.add('on');
+ $('en').textContent=cur.name_ar;document.documentElement.style.setProperty('--c',cur.color||'#0b5ea8');load()}
+async function load(){
+ accs=(await sb.from('accounts').select('*').eq('entity_id',cur.id)).data||[];
+ const tx=(await sb.from('transactions').select('*').eq('entity_id',cur.id).order('tx_date',{ascending:false}).limit(100)).data||[];
+ const bal=a=>tx.filter(t=>t.account_id==a.id&&t.status=='approved').reduce((s,t)=>s+(t.kind=='income'?1:-1)*Math.round(t.amount*100),Math.round(a.opening_balance*100))/100;
+ const tot=accs.filter(a=>a.kind!='credit').reduce((s,a)=>s+bal(a),0);
+ const inc=tx.filter(t=>t.kind=='income').reduce((s,t)=>s+ +t.amount,0),exp=tx.filter(t=>t.kind=='expense').reduce((s,t)=>s+ +t.amount,0);
+ $('kpi').innerHTML=[['إجمالي الأرصدة (معتمد)',tot],['الإيرادات',inc],['المصروفات',exp],['بانتظار الاعتماد',tx.filter(t=>t.status=='pending').length]].map(k=>`<div class="card"><div>${k[0]}</div><div class="bn">${k[1].toLocaleString('ar-EG')}</div></div>`).join('');
+ $('ta').innerHTML='<tr><th>الحساب</th><th>البنك</th><th>النوع</th><th>****</th><th>الرصيد</th></tr>'+accs.map(a=>`<tr><td>${esc(a.name)}</td><td>${esc(a.bank)}</td><td>${a.kind}</td><td>${esc(a.last4)}</td><td>${bal(a).toLocaleString('ar-EG')} ${a.currency}</td></tr>`).join('');
+ $('xa').innerHTML=accs.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+ $('tt').innerHTML='<tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الوصف</th><th>الحالة</th></tr>'+tx.map(t=>`<tr><td>${t.tx_date}</td><td>${t.kind=='income'?'إيراد':'مصروف'}</td><td>${t.amount}</td><td>${esc(t.description)}</td><td>${t.status=='approved'?'معتمد':`بانتظار <a href="#" onclick="ok('${t.id}');return false">اعتماد</a>`}</td></tr>`).join('')}
+async function addAcc(){const{error}=await sb.from('accounts').insert({entity_id:cur.id,name:$('an').value,bank:$('ab').value,kind:$('ak').value,last4:$('al').value||null,opening_balance:$('ao').value||0});error?alert(error.message):load()}
+async function addTx(){const{data:nt,error}=await sb.from('transactions').insert({entity_id:cur.id,account_id:$('xa').value,kind:$('xk').value,amount:$('xm').value,tx_date:$('xd').value||new Date().toISOString().slice(0,10),description:$('xs').value}).select().single();if(error)return alert(error.message);const f=$('xf').files[0];if(f){const pa=cur.id+'/'+nt.id+'/'+Date.now()+'_'+f.name.replace(/[^\w.-]/g,'_');const u=await sb.storage.from('docs').upload(pa,f);if(u.error)alert('فشل رفع المرفق: '+u.error.message);else await sb.from('attachments').insert({entity_id:cur.id,transaction_id:nt.id,path:pa})}$('xf').value='';load()}
+async function rep(){const w=window.open('');const lg=LOGO[cur.slug]?`<img src="${new URL(LOGO[cur.slug],location).href}" style="height:80px">`:'';w.document.write(`<html dir=rtl><body style="font-family:Tahoma">${lg}<h2>${esc(cur.name_ar)}</h2><p>تاريخ الإصدار ${new Date().toLocaleDateString('ar-EG')}</p>${$('ta').outerHTML}${$('tt').outerHTML}<style>td,th{border:1px solid #999;padding:4px}table{border-collapse:collapse;width:100%;margin:12px 0}</style></body></html>`);w.document.close();setTimeout(()=>w.print(),500)}
+async function ok(id){const{error}=await sb.from('transactions').update({status:'approved'}).eq('id',id);error?alert(error.message):load()}
+if(sb)init();
+</script></body></html>

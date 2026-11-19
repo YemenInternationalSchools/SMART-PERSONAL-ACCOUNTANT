@@ -1,0 +1,18 @@
+create table entities(id uuid primary key default gen_random_uuid(), slug text unique not null, name_ar text not null, name_en text, logo_path text, color text, created_at timestamptz default now());
+create table profiles(id uuid primary key references auth.users on delete cascade, full_name text, is_super_admin boolean not null default false);
+create table user_entities(user_id uuid references auth.users on delete cascade, entity_id uuid references entities on delete cascade, role text not null, can_write boolean not null default true, primary key(user_id,entity_id));
+create table accounts(id uuid primary key default gen_random_uuid(), entity_id uuid not null references entities, bank text, name text not null, kind text not null check(kind in('current','savings','debit','credit','wallet','cash','fx')), last4 text check(last4 ~ '^\d{4}$'), currency text default 'EGP', opening_balance numeric(18,2) not null default 0, credit_limit numeric(18,2), status text default 'active');
+create table transactions(id uuid primary key default gen_random_uuid(), entity_id uuid not null references entities, account_id uuid not null references accounts, kind text not null check(kind in('income','expense','transfer')), amount numeric(18,2) not null check(amount>0), tx_date date not null default current_date, description text, counterparty text, ref_no text, status text default 'pending' check(status in('pending','approved')), created_by uuid default auth.uid(), created_at timestamptz default now(), unique(entity_id,account_id,tx_date,amount,ref_no));
+create table journal_entries(id uuid primary key default gen_random_uuid(), entity_id uuid not null references entities, entry_date date not null, memo text, posted boolean default false);
+create table journal_lines(id uuid primary key default gen_random_uuid(), entry_id uuid not null references journal_entries on delete cascade, account_code text not null, debit numeric(18,2) not null default 0, credit numeric(18,2) not null default 0, check(debit>=0 and credit>=0));
+create table attachments(id uuid primary key default gen_random_uuid(), entity_id uuid not null references entities, transaction_id uuid references transactions, path text not null, uploaded_by uuid default auth.uid(), created_at timestamptz default now());
+create table audit_logs(id bigserial primary key, entity_id uuid, user_id uuid default auth.uid(), action text, table_name text, row_id text, at timestamptz default now());
+-- منع قيد غير متوازن عند الترحيل
+create function check_balance() returns trigger language plpgsql as $$ begin
+ if new.posted and (select coalesce(sum(debit),0)<>coalesce(sum(credit),0) from journal_lines where entry_id=new.id) then raise exception 'قيد غير متوازن'; end if; return new; end $$;
+create trigger trg_balance before update on journal_entries for each row execute function check_balance();
+create function audit() returns trigger language plpgsql security definer as $$ begin
+ insert into audit_logs(entity_id,action,table_name,row_id) values(coalesce(new.entity_id,old.entity_id),tg_op,tg_table_name,coalesce(new.id,old.id)::text); return coalesce(new,old); end $$;
+create trigger a1 after insert or update or delete on transactions for each row execute function audit();
+create trigger a2 after insert or update or delete on accounts for each row execute function audit();
+insert into entities(slug,name_ar,name_en,color) values('personal','الحسابات الشخصية - د. طه حسين قاضي','Personal','#0b5ea8'),('school','مدارس اليمن الدولية','Yemen International Schools','#1a8ad4'),('fahm','منصة فهم التعليمية','FAHM','#2a4fc0'),('anisa','أنيسة للخدمات الإعلانية','ANISA','#c2185b'),('home','مصروفات المنزل','Home','#2e7d32');
