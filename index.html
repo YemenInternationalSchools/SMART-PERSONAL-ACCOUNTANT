@@ -1,4 +1,9 @@
-<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>المحاسب الشخصي الذكي</title><meta name="theme-color" content="#0b5ea8">
+<!DOCTYPE html><html lang="ar" dir="rtl"><link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-192.png">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>المحاسب الشخصي الذكي</title><meta name="theme-color" content="#0b5ea8">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet"><style>
 :root{--d:#0b1633;--c:#0b5ea8;--ink:#101a33;--mut:#6b7899;--ok:#12a150;--bad:#e5484d;--gold:#e8c36a}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -68,7 +73,21 @@ textarea{outline:0}@media(min-width:900px){.chip{width:140px}.chip img,.chip i{w
 .cr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:8px 0;position:relative;z-index:1}.cr b{font-size:2.1em;font-weight:800;background:linear-gradient(90deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}.cr span{font-weight:800;color:var(--gold);font-size:1.1em}.cr small{opacity:.75;width:100%}
 .av{width:56px!important;height:56px!important;border-radius:50%!important;object-fit:cover!important;padding:0!important}
 #sh table{width:100%;border-collapse:collapse;font-size:.85em}#sh th,#sh td{padding:6px;border-bottom:1px solid #edf0f8;text-align:right}#sh h4{margin:12px 0 4px;color:var(--c)}
-</style></head><body>
+</style></head><script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("./sw.js")
+        .then((registration) => {
+          console.log("Service Worker registered:", registration.scope);
+        })
+        .catch((error) => {
+          console.error("Service Worker registration failed:", error);
+        });
+    });
+  }
+</script>
+<body>
 <div id="login" class="card"><div class="mark"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18"/></svg></div><h2>المحاسب الشخصي الذكي</h2><small>SMART PERSONAL ACCOUNTANT</small><br><br>
 <input id="em" placeholder="اسم المستخدم" autocapitalize="none" autocomplete="username"><input id="pw" type="password" placeholder="كلمة المرور" autocomplete="current-password">
 <label class="rem"><input type="checkbox" id="rm"><span class="bx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span>تذكرني على هذا الجهاز</label><button class="btn" onclick="login()">دخول</button><p id="msg" class="err"></p></div>
